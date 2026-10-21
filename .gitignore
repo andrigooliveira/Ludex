@@ -1,0 +1,15 @@
+# Dependências e saídas do build
+node_modules/
+dist/
+
+# SDK do WebView2: baixado do NuGet na primeira build (scripts/setup/build-setup.js)
+build/webview2/
+
+# Configuração local do Claude Code
+.claude/
+skills-lock.json
+
+*.log
+
+# Tema do Ludex para o Hydra: fica só na máquina
+hydra-theme/

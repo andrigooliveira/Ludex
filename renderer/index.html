@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src file: https: data:">
+  <title>Ludex</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <i data-icon="gamepad-2"></i>
+      <span>Ludex</span>
+    </div>
+    <!-- Jogo aberto pelo launcher e ainda rodando. -->
+    <div id="now-playing" hidden><span class="live-dot"></span><span id="now-playing-text"></span></div>
+    <label class="searchbox">
+      <i data-icon="search"></i>
+      <input id="search" type="search" placeholder="Buscar jogo" autofocus>
+    </label>
+    <button id="open-big" class="icon-btn" title="Modo tela grande (controle: Start)"><i data-icon="tv"></i></button>
+    <button id="open-stats" class="icon-btn" title="Estatísticas"><i data-icon="chart-column"></i></button>
+    <button id="open-downloads" class="icon-btn" title="Downloads"><i data-icon="download"></i><span id="dl-badge" hidden></span></button>
+    <button id="add" class="icon-btn" title="Adicionar um executável"><i data-icon="plus"></i></button>
+    <button id="refresh" class="icon-btn" title="Procurar jogos de novo"><i data-icon="refresh-cw"></i></button>
+    <button id="open-settings" class="icon-btn" title="Configurações do launcher"><i data-icon="settings"></i></button>
+    <!-- A janela não tem a barra do Windows; estes botões a substituem. -->
+    <div class="win-controls">
+      <button id="win-min" title="Minimizar"><i data-icon="minus"></i></button>
+      <button id="win-max" title="Maximizar"></button>
+      <button id="win-close" title="Fechar"><i data-icon="x"></i></button>
+    </div>
+  </header>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <h3 id="side-title">Categorias</h3>
+      <nav id="cat-list"></nav>
+      <button id="cat-new" class="side-action"><i data-icon="folder-plus"></i>Nova categoria</button>
+      <button id="cat-import" class="side-action" title="Traz as coleções da sua biblioteca da Steam"><i data-icon="folder-down"></i>Importar da Steam</button>
+    </aside>
+
+    <div id="content">
+      <section id="masthead">
+        <h1 id="title"></h1>
+        <dl id="telemetry"></dl>
+      </section>
+
+      <nav id="filters">
+        <div class="segmented" id="f-status">
+          <button data-value="all">Todos</button>
+          <button data-value="installed">Instalados</button>
+          <button data-value="missing">Não instalados</button>
+        </div>
+        <div id="f-genre"></div>
+        <div id="f-time"></div>
+        <div id="f-source"></div>
+        <button id="f-clear" hidden><i data-icon="x"></i>Limpar filtros</button>
+        <div id="f-group"></div>
+        <div id="f-sort"></div>
+        <div class="segmented" id="f-view">
+          <button data-value="grid" title="Grade de capas"><i data-icon="layout-grid"></i></button>
+          <button data-value="list" title="Lista com a página do jogo"><i data-icon="list"></i></button>
+        </div>
+      </nav>
+
+      <main>
+        <!-- Esqueleto mostrado até a primeira varredura terminar. -->
+        <div id="grid">
+          <div class="cards">
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+            <article class="card skeleton"><div class="cover"></div><div class="name"></div><div class="sub"></div></article>
+          </div>
+        </div>
+        <!-- Página do jogo, usada na visualização em lista. -->
+        <article id="page" hidden></article>
+        <section id="empty" hidden></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Tela de downloads: ocupa o lugar da biblioteca. -->
+  <div id="downloads-screen" hidden>
+    <section class="dl-masthead">
+      <div>
+        <button id="dl-back" class="back"><i data-icon="arrow-left"></i>Biblioteca</button>
+        <h1 id="dl-title">Downloads</h1>
+      </div>
+      <dl id="dl-telemetry"></dl>
+    </section>
+
+    <section class="dl-add">
+      <div class="row">
+        <form id="dl-form">
+          <input id="dl-input" type="text" placeholder="Cole um link magnet ou uma URL http(s)">
+          <button type="submit" class="primary"><i data-icon="download"></i>Baixar</button>
+          <button type="button" id="dl-torrent"><i data-icon="file-down"></i>Abrir .torrent</button>
+        </form>
+        <!-- Busca nas fontes: clicar num resultado põe o item na fila. -->
+        <div id="src-box">
+          <input id="src-search" type="search" autocomplete="off">
+          <div id="src-panel" hidden>
+            <p id="src-summary"></p>
+            <div id="src-results"></div>
+          </div>
+        </div>
+        <div id="src-filter" hidden></div>
+        <button type="button" id="src-open" title="Adicionar e gerenciar as fontes de download"><i data-icon="folder-down"></i>Fontes</button>
+      </div>
+      <div class="dl-options">
+        <button type="button" id="dl-rd" class="check-inline" role="checkbox" aria-checked="false" hidden><span class="dd-box"><i data-icon="check"></i></span>Usar Real-Debrid</button>
+        <span id="dl-dir"></span>
+      </div>
+      <p id="dl-error" class="status" hidden></p>
+    </section>
+
+    <section class="dl-network">
+      <div class="dl-section-head">
+        <h3><i data-icon="activity"></i>Rede</h3>
+        <span id="dl-scope"></span>
+        <ul class="legend" aria-label="Séries do gráfico">
+          <li><span class="line-key down"></span>Download</li>
+          <li><span class="line-key up"></span>Envio</li>
+        </ul>
+      </div>
+      <div id="dl-chart" role="img" aria-label="Velocidade de download e de envio nos últimos dois minutos"></div>
+      <details id="dl-table">
+        <summary>Ver os dados em tabela</summary>
+        <table>
+          <thead><tr><th>Intervalo</th><th>Download (média)</th><th>Envio (média)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </section>
+
+    <section class="dl-queue">
+      <div class="dl-section-head">
+        <h3><i data-icon="list"></i>Em andamento</h3>
+        <span id="dl-queue-count"></span>
+      </div>
+      <div id="dl-list"></div>
+    </section>
+
+    <section id="dl-done" class="dl-queue" hidden>
+      <div class="dl-section-head">
+        <h3><i data-icon="check"></i>Concluídos</h3>
+        <span id="dl-done-count"></span>
+      </div>
+      <div id="dl-done-list"></div>
+    </section>
+  </div>
+
+  <!-- Modo tela grande: cobre a janela inteira, em tela cheia. -->
+  <div id="big" hidden>
+    <div id="big-backdrop"></div>
+    <div class="big-top">
+      <span class="big-brand">Ludex</span>
+      <span id="big-playing"></span>
+      <span id="big-clock"></span>
+    </div>
+    <div id="big-info">
+      <div id="big-source"></div>
+      <h1 id="big-name"></h1>
+      <div id="big-facts"></div>
+    </div>
+    <div id="big-row"></div>
+    <footer class="big-hints">
+      <span><b>A</b> / Enter Jogar</span>
+      <span><b>B</b> / Esc Sair</span>
+      <span><b>LB RB</b> / PgUp PgDn Pular</span>
+    </footer>
+  </div>
+
+  <!-- Estatísticas: ocupa o lugar da biblioteca, como a tela de downloads. -->
+  <div id="stats-screen" hidden>
+    <section class="dl-masthead">
+      <div>
+        <button id="st-back" class="back"><i data-icon="arrow-left"></i>Biblioteca</button>
+        <h1 id="st-title">Estatísticas</h1>
+      </div>
+      <dl id="st-telemetry"></dl>
+    </section>
+
+    <section>
+      <div class="dl-section-head">
+        <h3><i data-icon="chart-column"></i>Horas por dia</h3>
+        <span>Últimos 30 dias · sessões de jogos abertos pelo Ludex</span>
+      </div>
+      <div id="st-chart" role="img" aria-label="Horas jogadas por dia nos últimos 30 dias"></div>
+      <details id="st-table" class="data-table">
+        <summary>Ver os dados em tabela</summary>
+        <table>
+          <thead><tr><th>Dia</th><th>Horas</th><th>Jogos</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </section>
+
+    <section class="st-ranks">
+      <div>
+        <div class="dl-section-head"><h3><i data-icon="activity"></i>Mais jogados no mês</h3></div>
+        <ol id="st-month" class="st-rank"></ol>
+      </div>
+      <div>
+        <div class="dl-section-head"><h3><i data-icon="clock"></i>Mais jogados de sempre</h3><span>tempo das lojas e do Ludex</span></div>
+        <ol id="st-ever" class="st-rank"></ol>
+      </div>
+    </section>
+  </div>
+
+  <!-- Menu do jogo: painel que abre na lateral direita. -->
+  <dialog id="drawer"></dialog>
+
+  <dialog id="edit" class="modal">
+    <h2>Corrigir informações</h2>
+    <p class="hint">Procure o jogo pelo nome e escolha o resultado certo. Os da Steam trazem capa, gêneros e descrição; os do SteamGridDB trazem só a capa.</p>
+    <form id="edit-form" class="row">
+      <input id="edit-term" type="text" maxlength="100" placeholder="Nome do jogo">
+      <button type="submit"><i data-icon="search"></i>Buscar</button>
+    </form>
+    <div id="edit-results"></div>
+    <div class="actions">
+      <button id="edit-rename" title="Mantém as informações atuais e só troca o nome exibido">Usar só este nome</button>
+      <button id="edit-none" title="Remove a capa e as informações vindas da loja">Não é nenhum destes</button>
+      <button id="edit-close">Fechar</button>
+    </div>
+  </dialog>
+
+  <!-- Saves de um jogo: onde ficam, backups feitos e restauração. -->
+  <dialog id="backups" class="modal">
+    <h2>Saves</h2>
+    <p id="bk-name" class="hint"></p>
+    <p id="bk-where" class="set-state"></p>
+    <div id="bk-list"></div>
+    <div class="actions">
+      <button id="bk-now" class="primary"><i data-icon="save"></i>Fazer backup agora</button>
+      <button id="bk-pick"><i data-icon="folder-open"></i>Escolher pasta dos saves</button>
+      <button id="bk-auto" hidden><i data-icon="refresh-cw"></i>Voltar ao catálogo</button>
+      <button id="bk-open"><i data-icon="folder"></i>Abrir backups</button>
+      <button id="bk-close">Fechar</button>
+    </div>
+  </dialog>
+
+  <dialog id="files" class="modal">
+    <h2>Arquivos do torrent</h2>
+    <p id="files-name" class="hint"></p>
+    <div class="files-bar">
+      <button id="files-all">Marcar todos</button>
+      <button id="files-none">Desmarcar todos</button>
+      <span id="files-summary"></span>
+    </div>
+    <div id="files-list"></div>
+    <div class="actions">
+      <button id="files-save" class="primary"><i data-icon="download"></i>Baixar os marcados</button>
+      <button id="files-close">Cancelar</button>
+    </div>
+  </dialog>
+
+  <dialog id="sources" class="modal">
+    <h2>Fontes</h2>
+    <p class="hint">Uma fonte é um arquivo .json com uma lista de títulos e os seus links (magnet, .torrent ou URL direta). Depois de adicionada, os itens dela aparecem na busca da tela de downloads.</p>
+    <p id="src-count" class="status"></p>
+    <div id="src-list"></div>
+    <form id="src-form" class="row">
+      <input id="src-url" type="text" placeholder="URL do .json de uma fonte">
+      <button type="submit"><i data-icon="plus"></i>Adicionar</button>
+    </form>
+    <p id="src-error" class="status" hidden></p>
+    <div class="actions">
+      <button id="src-file"><i data-icon="file-down"></i>Abrir .json</button>
+      <button id="src-close">Fechar</button>
+    </div>
+  </dialog>
+
+  <!-- Configurações: abas à esquerda, um bloco por item à direita. -->
+  <dialog id="settings">
+    <header class="set-head">
+      <h2>Configurações</h2>
+      <button id="settings-close" class="icon-btn" title="Fechar"><i data-icon="x"></i></button>
+    </header>
+    <nav class="set-nav" role="tablist" aria-label="Seções das configurações">
+      <button role="tab" data-tab="accounts"><i data-icon="user-round"></i>Contas</button>
+      <button role="tab" data-tab="downloads"><i data-icon="download"></i>Downloads</button>
+      <button role="tab" data-tab="saves"><i data-icon="save"></i>Saves</button>
+      <button role="tab" data-tab="covers"><i data-icon="image"></i>Capas</button>
+    </nav>
+    <div class="set-body">
+      <section data-panel="accounts" role="tabpanel">
+        <div class="set-block">
+          <h3>Steam</h3>
+          <p id="steam-status" class="set-state"></p>
+          <p class="hint">Com a chave da Web API, o launcher mostra todos os jogos da sua conta, instalados ou não, com o tempo de jogo. Ao gerar a chave, o domínio pode ser qualquer um (por exemplo, "localhost").</p>
+          <form id="steam-form" class="row">
+            <input id="steam-key" type="password" autocomplete="off" placeholder="Chave da Web API da Steam">
+            <button type="submit">Salvar</button>
+          </form>
+          <div class="actions">
+            <button id="steam-open"><i data-icon="external-link"></i>Abrir página da chave</button>
+            <button id="steam-clear"><i data-icon="trash-2"></i>Desconectar</button>
+          </div>
+        </div>
+        <div class="set-block">
+          <h3>Outras lojas</h3>
+          <p class="hint">GOG e Epic: o login é feito na página da própria loja, numa janela separada. O launcher nunca vê a sua senha e guarda só o token de acesso, cifrado. É um caminho não oficial e pode parar de funcionar se as lojas mudarem algo. Ubisoft Connect e EA App não têm login: os jogos são lidos do launcher delas instalado neste PC.</p>
+          <div id="accounts"></div>
+        </div>
+      </section>
+
+      <section data-panel="downloads" role="tabpanel" hidden>
+        <div class="set-block">
+          <h3>Pasta dos downloads</h3>
+          <p id="dl-dir-status" class="set-path"></p>
+          <div class="actions">
+            <button id="dl-dir-pick"><i data-icon="folder-open"></i>Escolher pasta</button>
+          </div>
+        </div>
+        <div class="set-block">
+          <h3>Segundo plano</h3>
+          <p class="hint">Ao fechar a janela, o launcher continua aberto na bandeja do Windows e os downloads seguem andando. Para sair de vez, clique com o botão direito no ícone da bandeja.</p>
+          <button type="button" id="set-tray" class="check-inline" role="checkbox" aria-checked="false"><span class="dd-box"><i data-icon="check"></i></span>Continuar na bandeja ao fechar</button>
+          <button type="button" id="set-login" class="check-inline" role="checkbox" aria-checked="false"><span class="dd-box"><i data-icon="check"></i></span>Abrir com o Windows, direto na bandeja</button>
+        </div>
+        <div class="set-block">
+          <h3>Real-Debrid</h3>
+          <p id="rd-status" class="set-state"></p>
+          <p class="hint">Com um token configurado, magnets, .torrent e links passam pelo Real-Debrid por padrão (dá para desmarcar em cada download).</p>
+          <form id="rd-form" class="row">
+            <input id="rd-token" type="password" autocomplete="off" placeholder="Token da API do Real-Debrid">
+            <button type="submit">Salvar</button>
+          </form>
+          <div class="actions">
+            <button id="rd-open"><i data-icon="external-link"></i>Abrir página do token</button>
+            <button id="rd-clear"><i data-icon="trash-2"></i>Remover token</button>
+          </div>
+        </div>
+        <div class="set-block">
+          <h3>Fontes de download</h3>
+          <p id="set-sources-status" class="set-state"></p>
+          <p class="hint">Catálogos em .json usados pela busca da tela de downloads.</p>
+          <div class="actions">
+            <button id="set-sources-open"><i data-icon="folder-down"></i>Gerenciar fontes</button>
+          </div>
+        </div>
+      </section>
+
+      <section data-panel="saves" role="tabpanel" hidden>
+        <div class="set-block">
+          <h3>Backup de saves</h3>
+          <p class="hint">O Ludex sabe onde milhares de jogos guardam os saves (pelo catálogo público do Ludusavi) e copia esses arquivos para uma pasta sua. Com o backup automático, a cópia é feita sempre que um jogo aberto pelo Ludex é fechado; guarda os 5 últimos de cada jogo. Para restaurar, use "Saves" no menu do jogo.</p>
+          <p id="set-saves-dir" class="set-path"></p>
+          <div class="actions">
+            <button id="set-saves-pick"><i data-icon="folder-open"></i>Escolher pasta</button>
+          </div>
+          <button type="button" id="set-autobackup" class="check-inline" role="checkbox" aria-checked="false"><span class="dd-box"><i data-icon="check"></i></span>Fazer backup ao fechar o jogo</button>
+        </div>
+      </section>
+
+      <section data-panel="covers" role="tabpanel" hidden>
+        <div class="set-block">
+          <h3>SteamGridDB</h3>
+          <p id="sgdb-status" class="set-state"></p>
+          <p class="hint">Fornece capas para jogos que não existem na loja da Steam. Crie uma conta gratuita no site, gere uma chave em Preferences &gt; API e cole aqui.</p>
+          <form id="settings-form" class="row">
+            <input id="sgdb-key" type="password" autocomplete="off" placeholder="Chave da API">
+            <button type="submit">Salvar</button>
+          </form>
+          <div class="actions">
+            <button id="sgdb-open"><i data-icon="external-link"></i>Abrir página da chave</button>
+            <button id="sgdb-clear"><i data-icon="trash-2"></i>Remover chave</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+  <div id="toast" role="status" hidden></div>
+
+  <script src="icons.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Instalar o Ludex</title>
+<!-- Interface do instalador. As fontes e o ícone ({{...}}) são embutidos por build-setup.js. -->
+<style>
+@font-face { font-family: "Archivo"; src: url(data:font/woff2;base64,{{ARCHIVO}}) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "JetBrains Mono"; src: url(data:font/woff2;base64,{{MONO}}) format("woff2"); font-weight: 100 800; }
+
+/* Mesmas cores e fontes do app. */
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0a;
+  --panel: #101010;
+  --raised: #1b1b1b;
+  --line: #242424;
+  --line-strong: #3b3b3b;
+  --text: #eaeaea;
+  --muted: #8c8c8c;
+  --accent: #ff2a2a;
+  --active: #3987e5;
+  --done: #3fb968;
+  --sans: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); user-select: none; overflow: hidden; border: 1px solid var(--line-strong); }
+
+/* Grão e linhas de varredura por cima de tudo, como no app. */
+body::before, body::after { content: ""; position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+body::before { opacity: .07; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+body::after { background-image: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0, 0, 0, .1) 2px 4px); }
+
+.mono, .label, button, .step { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; }
+
+/* Barra do topo: arrasta a janela; minimizar e fechar à direita. */
+.bar { display: flex; align-items: center; height: 44px; padding-left: 16px; border-bottom: 1px solid var(--line-strong); flex: none; }
+.bar .brand { display: flex; align-items: center; gap: 10px; font: 700 12px var(--mono); letter-spacing: .07em; }
+.bar .brand img { width: 18px; height: 18px; }
+.bar .grow { flex: 1; align-self: stretch; }
+.win { display: flex; align-self: stretch; }
+.win button { width: 46px; height: 100%; border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.win button:hover { background: var(--raised); color: var(--text); }
+.win button.close:hover { background: var(--accent); color: #000; }
+.win button:disabled { opacity: .3; pointer-events: none; }
+.win svg { width: 14px; height: 14px; }
+
+main { flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; }
+
+/* Coluna da esquerda: título grande do passo, passos e versão. */
+aside { display: flex; flex-direction: column; padding: 32px 28px 24px; border-right: 1px solid var(--line-strong); background: var(--panel); }
+aside .icon { width: 56px; height: 56px; margin-bottom: auto; }
+#title { margin: 0 0 22px; font: 900 40px/.9 var(--sans); letter-spacing: -.045em; text-transform: uppercase; white-space: nowrap; }
+#title::after { content: "_"; color: var(--accent); animation: blink 1.1s steps(1) 3; }
+#title.reveal { animation: wipe .45s var(--ease); }
+.steps { display: flex; flex-direction: column; gap: 2px; margin: 0 0 22px; padding: 0; list-style: none; }
+.step { display: flex; gap: 12px; padding: 7px 10px; color: var(--muted); border-left: 3px solid transparent; }
+.step b { color: var(--line-strong); font-weight: 500; }
+.step.on { color: var(--text); border-left-color: var(--accent); background: var(--raised); }
+.step.on b { color: var(--accent); }
+.step.past { color: var(--text); }
+.step.past b { color: var(--done); }
+.version { color: var(--muted); }
+
+/* Coluna da direita: o conteúdo do passo. */
+section { display: none; flex-direction: column; padding: 32px 32px 24px; min-height: 0; }
+section.on { display: flex; animation: rise .28s var(--ease); }
+h2 { margin: 0 0 6px; font: 800 22px/1.1 var(--sans); letter-spacing: -.02em; text-transform: uppercase; }
+.lead { margin: 0 0 24px; color: var(--muted); max-width: 52ch; }
+.label { display: block; margin-bottom: 8px; color: var(--muted); }
+.row { display: flex; gap: 8px; }
+.path { flex: 1; min-width: 0; padding: 0 12px; height: 38px; display: flex; align-items: center; border: 1px solid var(--line-strong); font: 13px var(--mono); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.path span { direction: ltr; unicode-bidi: plaintext; }
+
+button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 16px; color: var(--text); background: transparent; border: 1px solid var(--line-strong); cursor: pointer; white-space: nowrap; transition: background .1s, border-color .1s, color .1s; }
+button:hover { background: var(--text); border-color: var(--text); color: #000; }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { height: 44px; padding: 0 28px; background: var(--text); border-color: var(--text); color: #000; font-weight: 700; }
+button.primary:hover { background: var(--accent); border-color: var(--accent); }
+button:disabled { opacity: .35; pointer-events: none; }
+button svg { width: 15px; height: 15px; }
+
+/* Espaço em disco: quanto a instalação ocupa do que está livre. */
+.disk { margin-top: 22px; }
+.disk-bar { position: relative; height: 10px; margin: 2px 0 8px; background: var(--raised); border: 1px solid var(--line-strong); overflow: hidden; }
+.disk-bar i { position: absolute; inset: 0 auto 0 0; background: var(--active); min-width: 3px; }
+.disk-facts { display: flex; justify-content: space-between; color: var(--muted); font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+.disk-facts strong { color: var(--text); font-weight: 600; }
+
+/* Caixas de marcação no estilo do app. */
+.checks { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }
+.check { justify-content: flex-start; gap: 12px; height: 34px; padding: 0 10px 0 6px; border-color: transparent; color: var(--text); font: 14px var(--sans); letter-spacing: 0; text-transform: none; }
+.check:hover { background: var(--raised); border-color: transparent; color: var(--text); }
+.box { display: grid; place-items: center; width: 18px; height: 18px; flex: none; border: 1px solid var(--muted); }
+.box svg { width: 12px; height: 12px; stroke: #000; stroke-width: 3.5; transform: scale(0); transition: transform .14s var(--ease); }
+[aria-checked="true"] > .box { background: var(--text); border-color: var(--text); }
+[aria-checked="true"] > .box svg { transform: scale(1); }
+.note { margin: 2px 0 0 36px; color: var(--muted); font-size: 12px; }
+
+.status { margin: 18px 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--raised); font-size: 13px; }
+.status button { margin-top: 10px; height: 32px; }
+.status:empty { display: none; }
+
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: auto; padding-top: 20px; }
+.actions .left { margin-right: auto; }
+
+/* Instalando */
+.big { margin: auto 0 0; font: 700 72px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.progress { height: 12px; margin: 14px 0 12px; background: var(--raised); border: 1px solid var(--line-strong); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--active); transition: width .4s linear; }
+#work { color: var(--muted); font: 12px var(--mono); }
+
+/* Pronto */
+#done .where { margin: 0 0 18px; padding: 10px 12px; border: 1px solid var(--line); font: 12px var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+#done .where strong { color: var(--text); font-weight: 500; }
+
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="bar" id="bar">
+    <div class="brand"><img src="data:image/png;base64,{{ICON}}" alt="">LUDEX</div>
+    <div class="grow"></div>
+    <div class="win">
+      <button id="min" title="Minimizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M5 12h14"/></svg></button>
+      <button id="close" class="close" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+  </div>
+
+  <main>
+    <aside>
+      <img class="icon" src="data:image/png;base64,{{ICON}}" alt="">
+      <h1 id="title">Instalar</h1>
+      <ol class="steps">
+        <li class="step" data-step="options"><b>01</b>Opções</li>
+        <li class="step" data-step="installing"><b>02</b>Instalação</li>
+        <li class="step" data-step="done"><b>03</b>Pronto</li>
+      </ol>
+      <div class="version mono" id="version"></div>
+    </aside>
+
+    <section id="options">
+      <h2 id="options-title">Onde instalar</h2>
+      <p class="lead" id="options-lead">Todos os seus jogos num lugar só: Steam, Epic, GOG, Ubisoft, EA e os que você adicionar à mão, com downloads integrados.</p>
+
+      <span class="label">Pasta de instalação</span>
+      <div class="row">
+        <div class="path" id="dir"><span></span></div>
+        <button id="pick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>Alterar</button>
+      </div>
+
+      <div class="disk">
+        <span class="label" id="disk-label">Espaço em disco</span>
+        <div class="disk-bar" role="img" id="disk-bar" aria-label=""><i id="disk-fill"></i></div>
+        <div class="disk-facts"><span>Necessário <strong id="need"></strong></span><span>Livre <strong id="free"></strong></span></div>
+      </div>
+
+      <div class="checks">
+        <button class="check" role="checkbox" aria-checked="true" id="desktop"><span class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg></span>Atalho na Área de Trabalho</button>
+        <button class="check" role="checkbox" aria-checked="true" id="start-menu"><span class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg></span>Atalho no Menu Iniciar</button>
+        <p class="note" id="start-note" hidden>Sem ele, o Windows pode não mostrar as notificações de download concluído.</p>
+      </div>
+
+      <div class="status" id="problem"></div>
+
+      <div class="actions">
+        <button class="left" id="cancel">Cancelar</button>
+        <button class="primary" id="install">Instalar</button>
+      </div>
+    </section>
+
+    <section id="installing">
+      <h2>Instalando</h2>
+      <p class="lead">Copiando os arquivos do Ludex. Leva menos de um minuto.</p>
+      <div class="big" id="percent">0%</div>
+      <div class="progress"><i id="bar-fill"></i></div>
+      <div id="work">Preparando...</div>
+    </section>
+
+    <section id="done">
+      <h2 id="done-title">Tudo pronto</h2>
+      <p class="lead">O Ludex já está no seu computador. Seus jogos aparecem sozinhos na primeira abertura.</p>
+      <div class="where">Instalado em <strong id="done-dir"></strong></div>
+      <div class="checks">
+        <button class="check" role="checkbox" aria-checked="true" id="launch"><span class="box"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg></span>Abrir o Ludex agora</button>
+      </div>
+      <div class="actions">
+        <button class="primary" id="finish">Concluir</button>
+      </div>
+    </section>
+
+    <section id="error">
+      <h2>Não deu certo</h2>
+      <p class="lead" id="error-text"></p>
+      <div class="actions">
+        <button class="left" id="error-close">Fechar</button>
+        <button class="primary" id="retry">Tentar de novo</button>
+      </div>
+    </section>
+  </main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const send = (message) => window.chrome.webview.postMessage(JSON.stringify(message));
+const state = { dir: '', required: 0, free: -1, writable: true, upgrade: false };
+
+function formatBytes(bytes) {
+  if (!(bytes > 0)) return '0 MB';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const power = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  return `${(bytes / 1024 ** power).toLocaleString('pt-BR', { maximumFractionDigits: power > 2 ? 1 : 0 })} ${units[power]}`;
+}
+
+// Troca de passo: título grande da esquerda, marcação dos passos e conteúdo.
+function show(step, title) {
+  const order = ['options', 'installing', 'done'];
+  for (const section of document.querySelectorAll('section')) section.classList.toggle('on', section.id === step);
+  for (const item of document.querySelectorAll('.step')) {
+    const index = order.indexOf(item.dataset.step);
+    item.classList.toggle('on', item.dataset.step === step);
+    item.classList.toggle('past', order.indexOf(step) > index && index >= 0);
+  }
+  const node = $('title');
+  if (node.textContent !== title) {
+    node.textContent = title;
+    // Palavra comprida ("Atualizando") fica menor para não quebrar no meio.
+    node.style.fontSize = title.length > 8 ? '30px' : '';
+    node.classList.remove('reveal');
+    void node.offsetWidth;
+    node.classList.add('reveal');
+  }
+  $('close').disabled = step === 'installing';
+}
+
+function renderDir() {
+  $('dir').firstElementChild.textContent = state.dir;
+  $('dir').title = state.dir;
+  $('need').textContent = formatBytes(state.required);
+  $('free').textContent = state.free >= 0 ? `${formatBytes(state.free)} em ${state.drive}` : 'desconhecido';
+  // A barra mostra quanto da área livre a instalação vai ocupar.
+  const share = state.free > 0 ? Math.min(1, state.required / state.free) : 1;
+  $('disk-fill').style.width = `${share * 100}%`;
+  $('disk-bar').setAttribute('aria-label', `A instalação ocupa ${Math.round(share * 1000) / 10}% do espaço livre`);
+  $('disk-label').textContent = state.drive ? `Espaço em disco · ${state.drive}` : 'Espaço em disco';
+  let problem = '';
+  if (!state.writable) problem = 'Não dá para gravar nesta pasta. Escolha outra, como uma dentro de "Documentos" ou de outro disco.';
+  else if (state.free >= 0 && state.free < state.required * 1.1) problem = 'Não há espaço suficiente neste disco. Libere espaço ou escolha outra pasta.';
+  $('problem').replaceChildren(problem);
+  $('install').disabled = Boolean(problem);
+}
+
+function toggle(node) {
+  node.setAttribute('aria-checked', String(node.getAttribute('aria-checked') !== 'true'));
+}
+
+function install(closeRunning) {
+  $('problem').replaceChildren();
+  show('installing', state.upgrade ? 'Atualizando' : 'Instalando');
+  $('percent').textContent = '0%';
+  $('bar-fill').style.width = '0';
+  $('work').textContent = closeRunning ? 'Fechando o Ludex aberto...' : 'Preparando...';
+  send({ type: 'install', dir: state.dir, desktop: $('desktop').getAttribute('aria-checked') === 'true', startMenu: $('start-menu').getAttribute('aria-checked') === 'true', closeRunning });
+}
+
+window.chrome.webview.addEventListener('message', (event) => {
+  const message = event.data;
+  if (message.type === 'init' || message.type === 'dir') {
+    Object.assign(state, { dir: message.dir, free: message.free, drive: message.drive, writable: message.writable });
+    if (message.type === 'init') {
+      state.required = message.required;
+      state.upgrade = message.upgrade;
+      $('version').textContent = `Versão ${message.version}`;
+      $('install').textContent = state.upgrade ? 'Atualizar' : 'Instalar';
+      $('options-title').textContent = state.upgrade ? 'Atualizar o Ludex' : 'Onde instalar';
+      if (state.upgrade) $('options-lead').textContent = 'Já existe uma instalação neste computador. Ela será substituída pela versão nova; sua biblioteca, contas, downloads e saves continuam como estão.';
+      show('options', state.upgrade ? 'Atualizar' : 'Instalar');
+    }
+    renderDir();
+  } else if (message.type === 'running') {
+    show('options', state.upgrade ? 'Atualizar' : 'Instalar');
+    const box = $('problem');
+    const go = document.createElement('button');
+    go.textContent = 'Fechar o Ludex e continuar';
+    go.addEventListener('click', () => install(true));
+    box.replaceChildren('O Ludex está aberto (talvez na bandeja). Ele precisa ser fechado para a instalação continuar.', document.createElement('br'), go);
+  } else if (message.type === 'progress') {
+    const value = Math.round(message.value * 100);
+    $('percent').textContent = `${value}%`;
+    $('bar-fill').style.width = `${value}%`;
+    $('work').textContent = value < 10 ? 'Preparando...' : value < 95 ? 'Copiando os arquivos...' : 'Criando os atalhos...';
+  } else if (message.type === 'done') {
+    $('percent').textContent = '100%';
+    $('bar-fill').style.width = '100%';
+    $('done-dir').textContent = message.dir;
+    $('done-title').textContent = state.upgrade ? 'Atualizado' : 'Tudo pronto';
+    setTimeout(() => show('done', 'Pronto'), 400);
+  } else if (message.type === 'error') {
+    $('error-text').textContent = message.message;
+    show('error', 'Erro');
+  }
+});
+
+$('bar').addEventListener('mousedown', (event) => {
+  if (event.button === 0 && !event.target.closest('button')) send({ type: 'drag' });
+});
+$('min').addEventListener('click', () => send({ type: 'minimize' }));
+$('close').addEventListener('click', () => send({ type: 'close' }));
+$('cancel').addEventListener('click', () => send({ type: 'close' }));
+$('error-close').addEventListener('click', () => send({ type: 'close' }));
+$('retry').addEventListener('click', () => show('options', state.upgrade ? 'Atualizar' : 'Instalar'));
+$('pick').addEventListener('click', () => send({ type: 'pickDir', dir: state.dir }));
+$('desktop').addEventListener('click', (event) => toggle(event.currentTarget));
+$('start-menu').addEventListener('click', (event) => {
+  toggle(event.currentTarget);
+  $('start-note').hidden = event.currentTarget.getAttribute('aria-checked') === 'true';
+});
+$('launch').addEventListener('click', (event) => toggle(event.currentTarget));
+$('install').addEventListener('click', () => install(false));
+$('finish').addEventListener('click', () => send({ type: 'finish', launch: $('launch').getAttribute('aria-checked') === 'true', dir: $('done-dir').textContent }));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && document.activeElement === document.body) {
+    const primary = document.querySelector('section.on button.primary');
+    if (primary && !primary.disabled) primary.click();
+  }
+});
+
+send({ type: 'ready' });
+</script>
+</body>
+</html>

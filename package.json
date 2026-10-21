@@ -1,0 +1,73 @@
+{
+  "name": "game-launcher",
+  "version": "0.11.0",
+  "description": "Ludex: todos os seus jogos num lugar só, com downloads integrados",
+  "author": "Andrigo Oliveira",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrigooliveira/ludex.git"
+  },
+  "productName": "Ludex",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis && node scripts/setup/build-setup.js",
+    "assets": "node scripts/build-icons.js && node scripts/copy-fonts.js && electron scripts/build-app-icon.js"
+  },
+  "build": {
+    "appId": "local.gamelauncher.app",
+    "files": [
+      "main.js",
+      "preload.js",
+      "metadata.js",
+      "sgdb.js",
+      "steamAccount.js",
+      "accounts.js",
+      "accent.js",
+      "downloads.js",
+      "realdebrid.js",
+      "sources.js",
+      "saves.js",
+      "scanners/**",
+      "assets/**",
+      "renderer/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "artifactName": "ludex-nsis-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046",
+      "shortcutName": "Ludex",
+      "uninstallDisplayName": "Ludex",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "packElevateHelper": false
+    },
+    "npmRebuild": false,
+    "afterSign": "scripts/after-sign.js"
+  },
+  "devDependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.15.3",
+    "lucide-static": "^1.55.0"
+  },
+  "dependencies": {
+    "webtorrent": "^3.0.21"
+  }
+}
